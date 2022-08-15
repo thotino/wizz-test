@@ -1,7 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const axios = require('axios');
+const lodash = require('lodash');
 const db = require('./models');
-const { Op } = require('sequelize');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.put('/api/games/:id', (req, res) => {
 
 app.post('/api/games/search', async (req, res) => {
   try {
+    const Op = db.Sequelize.Op;
     const { name = null, platform = null } = req.params
     // No search specified case
     if (!name || !platform) {
@@ -74,7 +76,46 @@ app.post('/api/games/search', async (req, res) => {
     res.status(400).send(error);
   }
 })
+const topGamesBuckets = new Map([
+  ['android', 'https://interview-marketing-eng-dev.s3.eu-west-1.amazonaws.com/android.top100.json'],
+  ['ios', 'https://interview-marketing-eng-dev.s3.eu-west-1.amazonaws.com/ios.top100.json']
+])
+app.post('/api/games/populate', async (req, res) => {
+  const transaction = await db.sequelize.transaction()
+  try {
+    for (const [currentPlatform, bucketUri] of topGamesBuckets) {
+      console.log(`Querying data for ${currentPlatform} platform...`)
+      const { data: topGamesJSON } = await axios({ 
+        url: bucketUri
+       })
+       if (!topGamesJSON || !topGamesJSON.length) throw new Error('ERR_NO_DATA_FOUND')
+       for (const topGames of topGamesJSON) {
+        for (const topGame of topGames) {
+          if (!topGame || lodash.isEmpty(topGame)) continue
+          const { 
+            publisher_id: publisherId, 
+            name, 
+            os: platform, 
+            bundle_id: bundleId, 
+            version: appVersion, 
+            appId: storeId 
+          } = topGame
+          const game = { publisherId, name, platform, bundleId, appVersion, storeId, isPublished: true }
+          console.log({ game })
+          await db.Game.findOrCreate({ where: { ...game }, defaults: { ...game }, transaction })
+        }
+       }
+    }
 
+    await transaction.commit()
+    return res.send({ updated: true })
+    
+  } catch (error) {
+    await transaction.rollback()
+    console.error('***Error populating database', error);
+    return res.status(400).send(error);
+  }
+})
 
 app.listen(3000, () => {
   console.log('Server is up on port 3000');

@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('./models');
+const { Op } = require('sequelize');
 
 const app = express();
 
@@ -50,6 +51,29 @@ app.put('/api/games/:id', (req, res) => {
         });
     });
 });
+
+app.post('/api/games/search', async (req, res) => {
+  try {
+    const { name = null, platform = null } = req.params
+    // No search specified case
+    if (!name || !platform) {
+      const games = await db.Game.findAll()
+      return res.send(games)
+    }
+    // Query the entities with the given criteria
+    const games = await db.Game.findAll({ where: {
+      [Op.and]: [
+        {platform},
+        { name: { [Op.like]: `%${name}%` } }
+      ]
+    } 
+  })
+  return res.send(games)
+  } catch (error) {
+    console.log('***Error searching games', JSON.stringify(error));
+    res.status(400).send(error);
+  }
+})
 
 
 app.listen(3000, () => {

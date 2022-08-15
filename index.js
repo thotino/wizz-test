@@ -8,7 +8,7 @@ const {
   deleteGame, 
   updateGame, 
   searchGames, 
-  populateDatabaseWithGames 
+  populateDatabaseWithGames
 } = require('./controllers')
 
 const app = express();

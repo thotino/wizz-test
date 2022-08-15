@@ -95,6 +95,10 @@ const searchGames = async (req, res) => {
     }
   }
 
+  /**
+   * Import data to the database
+   * @returns {*} Update notice or throw an error
+   */
   const populateDatabaseWithGames = async (req, res) => {
     const transaction = await db.sequelize.transaction()
     try {
@@ -132,42 +136,47 @@ const searchGames = async (req, res) => {
     }
   }
 
-//   const populateDatabaseWithGamesInBulk = async (req, res) => {
-//     const transaction = await db.sequelize.transaction()
-//     try {
-//         const allFormattedGames = []
-//       for (const [currentPlatform, bucketUri] of topGamesBuckets) {
-//         console.log(`Querying data for ${currentPlatform} platform...`)
-//         const { data: topGamesJSON } = await axios({ 
-//           url: bucketUri
-//          })
-//          if (!topGamesJSON || !topGamesJSON.length) throw new Error('ERR_NO_DATA_FOUND')
-//          for (const topGames of topGamesJSON) {
-//           for (const topGame of topGames) {
-//             if (!topGame || lodash.isEmpty(topGame)) continue
-//             const { 
-//               publisher_id: publisherId, 
-//               name, 
-//               os: platform, 
-//               bundle_id: bundleId, 
-//               version: appVersion, 
-//               appId: storeId 
-//             } = topGame
-//             const game = { publisherId, name, platform, bundleId, appVersion, storeId, isPublished: true }
-//             allFormattedGames.push(game)
-//           }
-//          }
-//       }
-//       await db.Game.bulkCreate(allFormattedGames, { transaction })
-//       await transaction.commit()
-//       return res.send({ updated: true })
+  /**
+   * An alternative to the function above. 
+   * Create the data in bulk
+   * @returns 
+   */
+  const populateDatabaseWithGamesInBulk = async (req, res) => {
+    const transaction = await db.sequelize.transaction()
+    try {
+        const allFormattedGames = []
+      for (const [currentPlatform, bucketUri] of topGamesBuckets) {
+        console.log(`Querying data for ${currentPlatform} platform...`)
+        const { data: topGamesJSON } = await axios({ 
+          url: bucketUri
+         })
+         if (!topGamesJSON || !topGamesJSON.length) throw new Error('ERR_NO_DATA_FOUND')
+         for (const topGames of topGamesJSON) {
+          for (const topGame of topGames) {
+            if (!topGame || lodash.isEmpty(topGame)) continue
+            const { 
+              publisher_id: publisherId, 
+              name, 
+              os: platform, 
+              bundle_id: bundleId, 
+              version: appVersion, 
+              appId: storeId 
+            } = topGame
+            const game = { publisherId, name, platform, bundleId, appVersion, storeId, isPublished: true }
+            allFormattedGames.push(game)
+          }
+         }
+      }
+      await db.Game.bulkCreate(allFormattedGames, { transaction })
+      await transaction.commit()
+      return res.send({ updated: true })
   
-//     } catch (error) {
-//       await transaction.rollback()
-//       console.error('***Error populating database', error);
-//       return res.status(400).send(error);
-//     }
-//   }
+    } catch (error) {
+      await transaction.rollback()
+      console.error('***Error populating database', error);
+      return res.status(400).send(error);
+    }
+  }
 
 module.exports = { 
     retrieveGames,
@@ -175,5 +184,6 @@ module.exports = {
     deleteGame,
     updateGame,
     searchGames,
-    populateDatabaseWithGames
+    populateDatabaseWithGames,
+    populateDatabaseWithGamesInBulk
  }

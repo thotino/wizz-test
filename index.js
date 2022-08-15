@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-
+const db = require('./models')
 // The handler functions
 const { 
   retrieveGames, 
@@ -28,8 +28,9 @@ app.post('/api/games/search', searchGames)
 
 app.post('/api/games/populate', populateDatabaseWithGames)
 
-app.listen(3000, () => {
+app.listen(3000, async () => {
   console.log('Server is up on port 3000');
+  await db.sequelize.sync();
 });
 
 module.exports = app;
